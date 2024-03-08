@@ -75,21 +75,27 @@ func GetAllDetailRooms(w http.ResponseWriter, r *http.Request) {
 }
 
 func InsertToRoom(w http.ResponseWriter, r *http.Request) {
-	db, err := connectGorm()
+	db := connect()
+	defer db.Close()
+
+	// Read request from body
+	err := r.ParseForm()
 	if err != nil {
-		log.Fatal(err)
-		sendErrorResponse(w, "Failed to Connect Database!")
+		return
 	}
-	var participants int64
-	// var max_player int64
-	id_room := r.Form.Get("id_room")
-	strconv.Atoi(id_room)
-	// room_name := r.Form.Get("room_name")
-	// id_games, _ := strconv.Atoi(r.Form.Get("id_game"))
-	// if id_games > max_players
-	db.Model(&m.Participant{}).Where("room_id = ?", id_room).Count(&participants)
-	fmt.Println(participants)
-	fmt.Println(id_room)
+	id_room, _ := strconv.Atoi(r.Form.Get("id_room"))
+	id_account, _ := strconv.Atoi(r.Form.Get("id_account"))
+
+	_, errQuery := db.Exec("INSERT INTO participants (id_room, id_account) VALUES (?,?)",
+		id_room,
+		id_account,
+	)
+
+	if errQuery != nil {
+		sendErrorResponse(w, "Failed to Insert!")
+	} else {
+		sendSuccessResponse(w, "Success Insert!")
+	}
 }
 
 func sendErrorResponse(w http.ResponseWriter, message string) {
