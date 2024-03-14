@@ -20,7 +20,7 @@ jobs:
     - uses: actions/setup-go@v2
       with:
         stable: 'false'
-        go-version: 'go-latest'
+        go-version: '1.21.6'
 
     - name: Use git-auto-commit-action
       id: "auto-commit-action"
