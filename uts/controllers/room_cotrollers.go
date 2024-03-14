@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -75,23 +74,58 @@ func GetAllDetailRooms(w http.ResponseWriter, r *http.Request) {
 }
 
 func InsertToRoom(w http.ResponseWriter, r *http.Request) {
-	db := connect()
-	defer db.Close()
-
-	// Read request from body
-	err := r.ParseForm()
+	db, err := connectGorm()
 	if err != nil {
+		log.Fatal(err)
+		sendErrorResponse(w, "Failed to connect Database!")
 		return
 	}
-	id_room, _ := strconv.Atoi(r.Form.Get("id_room"))
-	id_account, _ := strconv.Atoi(r.Form.Get("id_account"))
+	er := r.ParseForm()
+	if er != nil {
+		return
+	}
+	id_room, errIdRoom := strconv.Atoi(r.Form.Get("id_room"))
+	id_account, errIdAccount := strconv.Atoi(r.Form.Get("id_account"))
+	var max_player int
+	var participants int
+	var id int
+	var ids []int
+	rows, err := db.Raw("SELECT g.max_player, COUNT(p.id) AS participants, p.id FROM rooms r JOIN participants p ON r.id = p.id_room JOIN games g ON g.id = r.id_games WHERE r.id = ?", id_room).Rows()
 
-	_, errQuery := db.Exec("INSERT INTO participants (id_room, id_account) VALUES (?,?)",
-		id_room,
-		id_account,
-	)
+	for rows.Next() { //mendapat nilai value max_player dan jumlah participants
+		if err := rows.Scan(&max_player, &participants, &id); err != nil {
+			return
+		} else {
+			ids = append(ids, id)
+		}
+	}
 
-	if errQuery != nil {
+	if errIdRoom != nil { //Error kesalahan ID room
+		sendErrorResponse(w, "invalid id room!")
+		return
+	}
+
+	if errIdAccount != nil { //Error kesalahan ID account
+		sendErrorResponse(w, "invalid id account!")
+		return
+	} /*else {
+		for i := 0; i < len(ids); i++ { //Error jika akun sudah ada di dalam room game
+			if ids[i] == id_account {
+				fmt.Println(ids[i])
+				sendErrorResponse(w, "Account Already in room game")
+				return
+			}
+		}
+	}*/
+
+	if participants == max_player { //Error ketika room sudah penuh
+		sendErrorResponse(w, "Game Room already Full!")
+		return
+	}
+
+	participant := m.Participant{Id_room: id_room, Id_account: id_account}
+	result := db.Create(&participant)
+	if result.Error != nil {
 		sendErrorResponse(w, "Failed to Insert!")
 	} else {
 		sendSuccessResponse(w, "Success Insert!")
@@ -100,7 +134,7 @@ func InsertToRoom(w http.ResponseWriter, r *http.Request) {
 
 func sendErrorResponse(w http.ResponseWriter, message string) {
 	var response m.RoomsResponse
-	response.Status = 400
+	response.Status = http.StatusNotAcceptable
 	response.Message = message
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -108,7 +142,7 @@ func sendErrorResponse(w http.ResponseWriter, message string) {
 
 func sendSuccessResponse(w http.ResponseWriter, message string) {
 	var response m.RoomsResponse
-	response.Status = 200
+	response.Status = http.StatusAccepted
 	response.Message = message
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
