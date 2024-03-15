@@ -5,7 +5,12 @@ name: Go build & test
 
 on:
   push:
+<<<<<<< Updated upstream
     branches: [ "main" ]
+=======
+    branches: 
+      - main
+>>>>>>> Stashed changes
   pull_request:
     branches: [ "main" ]
 
